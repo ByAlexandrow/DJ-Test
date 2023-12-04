@@ -8,7 +8,7 @@ from notes.forms import NoteForm
 
 HOME_PAGE = reverse('notes:list')
 ADD_NOTE_PAGE = reverse('notes:add')
-# EDIT_NOTE_PAGE = reverse('notes:edit')
+EDIT_NOTE_PAGE = reverse('notes:edit', args=('slug',))
 
 
 class TestViews(TestCase):
@@ -49,5 +49,5 @@ class TestViews(TestCase):
             self.assertIsInstance(response.context['form'], NoteForm)
 
     def test_edit_note_page_form(self):
-        response = self.client.get(reverse('notes:edit', args=[self.note.id]))
+        response = self.client.get(EDIT_NOTE_PAGE)
         self.assertIsNotNone(response.context)

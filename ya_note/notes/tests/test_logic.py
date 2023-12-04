@@ -8,7 +8,7 @@ from notes.models import Note
 
 
 ADD_NOTE_PAGE = reverse('notes:add')
-# EDIT_NOTE_PAGE = reverse('notes:edit')
+EDIT_NOTE_PAGE = reverse('notes:edit', args=('slug',))
 NOTE_CONTAINS = {'title': 'Название заметки', 'text': 'Текст заметки'}
 
 
@@ -74,22 +74,13 @@ class TestViews(TestCase):
     def test_edit_note_own(self):
         self.client.login(username='Имя пользователя', password='Пароль')
         response = self.client.post(
-            reverse('notes:edit', args=[self.note.id]),
+            EDIT_NOTE_PAGE,
             NOTE_CONTAINS)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_edit_note_other(self):
-        other_user = User.objects.create_user(
-            username='Новый пользователь',
-            password='Пароль'
-        )
-        other_note = Note.objects.create(
-            title='Имя заметки',
-            text='Текст заметки',
-            author=other_user
-        )
         self.client.login(username='Имя пользователя', password='Пароль')
         response = self.client.post(
-            reverse('notes:edit', args=[other_note.id]),
+            EDIT_NOTE_PAGE,
             NOTE_CONTAINS)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
