@@ -1,68 +1,65 @@
 from http import HTTPStatus
+
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from notes.models import Note
+
+
+HOME_PAGE = reverse('notes:list')
+ADD_NOTE_PAGE = reverse('notes:add')
+EDIT_NOTE_PAGE = reverse('notes:edit', args=('slug',))
+DELETE_NOTE_PAGE = reverse('notes:delete', args=('slug',))
+DETAIL_NOTE_PAGE = reverse('notes:detail', args=('slug',))
+SIGNUP_PAGE = reverse('users:signup')
+LOGIN_PAGE = reverse('users:login')
+LOGOUT_PAGE = reverse('users:logout')
 
 
 class TestViews(TestCase):
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.client = Client()
+        cls.user = User.objects.create_user(
+            username='Имя пользователя',
+            password='Пароль'
+        )
+        return super().setUpTestData()
+
     def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(username='Имя пользователя',
-                                             password='Пароль')
-
-    def test_home_page(self):
-        response = self.client.get(reverse('notes:home'))
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_notes_page(self):
-        self.client.login(username='Пользователь', password='Пароль')
-        response = self.client.get(reverse('notes:list'))
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-
-    def test_add_note(self):
-        self.client.login(username='Пользователь', password='Пароль')
-        response = self.client.get(reverse('notes:add'))
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-
-    def test_note_detail_page(self):
-        self.client.login(username='Пользователь', password='Пароль')
-        note = Note.objects.create(
-            title='Название заметки',
-            text='Текст заметки',
-            author=self.user
+        self.client.login(
+            username='Имя пользователя',
+            password='Пароль'
         )
-        response = self.client.get(reverse('notes:detail', args=[note.id]))
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
 
-    def test_edit_note(self):
-        self.client.login(username='Пользователь', password='Пароль')
-        note = Note.objects.create(
-            title='Назание заметки',
-            text='Текст заметки',
-            author=self.user
-        )
-        response = self.client.get(reverse('notes:edit', args=[note.id]))
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+    def test_pages(self):
+        test_cases = [
+            [HOME_PAGE, self.client, HTTPStatus.OK],
+            [ADD_NOTE_PAGE, self.client, HTTPStatus.OK],
+            [SIGNUP_PAGE, self.client, HTTPStatus.OK],
+            [LOGIN_PAGE, self.client, HTTPStatus.OK],
+            [LOGOUT_PAGE, self.client, HTTPStatus.OK],
+        ]
 
-    def test_delete_note(self):
-        self.client.login(username='Пользователь', password='Пароль')
-        note = Note.objects.create(
-            title='Название заметки',
-            text='Текст заметки',
-            author=self.user
-        )
-        response = self.client.get(reverse('notes:delete', args=[note.id]))
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        for url, client, expected_status in test_cases:
+            with self.subTest(url=url):
+                response = client.get(url)
+                self.assertEqual(response.status_code, expected_status)
 
-    def test_login_page(self):
-        response = self.client.get(reverse('users:login'))
-        self.assertEqual(response.status_code, 200)
-
-    def test_register_page(self):
-        response = self.client.get(reverse('users:signup'))
-        self.assertEqual(response.status_code, 200)
-
-    def test_logout_page(self):
-        response = self.client.get(reverse('users:logout'))
-        self.assertEqual(response.status_code, 200)
+    def test_redirects(self):
+        test_cases = [
+            [reverse('notes:edit', args=[1]), self.client,
+             HTTPStatus.NOT_FOUND, '/login/?next=/notes/1/edit/'],
+            [reverse('notes:delete', args=[1]), self.client,
+             HTTPStatus.NOT_FOUND, '/login/?next=/notes/1/delete/'],
+            [reverse('notes:detail', args=[1]), self.client,
+             HTTPStatus.NOT_FOUND, '/login/?next=/notes/1/'],
+        ]
+        for url, client, expected_status, expected_url in test_cases:
+            with self.subTest(url=url):
+                response = client.get(url)
+                if expected_status == HTTPStatus.FOUND:
+                    self.assertRedirects(response, expected_url,
+                                         status_code=expected_status)
+                else:
+                    self.assertEqual(response.status_code, expected_status)
