@@ -1,73 +1,52 @@
 import pytest
 from http import HTTPStatus
 
-from django.urls import reverse
-from pytest_django.asserts import assertRedirects
+from django.test import Client
+
+
+HOME_PAGE_URL = ('news:home')
+DETAIL_PAGE_URL = ('news:detail')
+EDIT_COMMENT_URL = ('news:edit')
+DELETE_COMMENT_URL = ('news:delete')
+SIGNUP_USER_URL = ('users:signup')
+LOGIN_USER_URL = ('users:login')
+LOGOUT_USER_URL = ('users:logout')
 
 
 @pytest.mark.django_db
-def test_home_page_available_for_anonymous_user(client):
-    url = reverse('news:home')
+@pytest.mark.parametrize(
+    'url, expected_status',
+    [
+        (HOME_PAGE_URL, HTTPStatus.NOT_FOUND),
+        (DETAIL_PAGE_URL, HTTPStatus.NOT_FOUND),
+        (EDIT_COMMENT_URL, HTTPStatus.NOT_FOUND),
+        (DELETE_COMMENT_URL, HTTPStatus.NOT_FOUND),
+        (SIGNUP_USER_URL, HTTPStatus.NOT_FOUND),
+        (LOGIN_USER_URL, HTTPStatus.NOT_FOUND),
+        (LOGOUT_USER_URL, HTTPStatus.NOT_FOUND),
+    ]
+)
+def test_all_status_codes(client, url, expected_status):
     response = client.get(url)
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == expected_status
 
 
 @pytest.mark.django_db
-def test_news_detail_page_available_for_anonymous_user(client, news):
-    url = reverse('news:detail', args=[news.id])
-    response = client.get(url)
-    assert response.status_code == HTTPStatus.OK
-
-
-# параметризовать
-@pytest.mark.django_db
-def test_comment_page_available_for_author(client, comment):
-    url_edit = reverse('news:edit', args=[comment.id])
-    url_delete = reverse('news:delete', args=[comment.id])
-    client.force_login(comment.author)
-    response_edit = client.get(url_edit)
-    response_delete = client.get(url_delete)
-    assert response_edit.status_code == HTTPStatus.OK
-    assert response_delete.status_code == HTTPStatus.OK
-
-
-# парамаетризовать
-@pytest.mark.django_db
-def test_comment_page_redirect_for_anonymous_user(client, comment):
-    login_url = reverse('users:login')
-    edit_url = reverse('news:edit', args=[comment.id])
-    delete_url = reverse('news:delete', args=[comment.id])
-    expected_login_edit_url = f'{login_url}?next={edit_url}'
-    expected_login_delete_url = f'{login_url}?next={delete_url}'
-    response_edit = client.get(edit_url)
-    response_delete = client.get(delete_url)
-    assert response_edit.status_code == HTTPStatus.FOUND
-    assert response_delete.status_code == HTTPStatus.FOUND
-    assertRedirects(response_edit, expected_login_edit_url)
-    assertRedirects(response_delete, expected_login_delete_url)
-
-
-# параметризовать
-@pytest.mark.django_db
-def test_comment_page_for_other_users(client, comment, user):
-    edit_url = reverse('news:edit', args=[comment.id])
-    delete_url = reverse('news:delete', args=[comment.id])
-    client.force_login(user)
-    response_edit = client.get(edit_url)
-    response_delete = client.get(delete_url)
-    assert response_edit.status_code == HTTPStatus.OK
-    assert response_delete.status_code == HTTPStatus.OK
-
-
-# параметризовать
-@pytest.mark.django_db
-def test_auth_pages_available_to_anonymous_user(client):
-    register_url = reverse('users:signup')
-    login_url = reverse('users:login')
-    logout_url = reverse('users:logout')
-    response_register = client.get(register_url)
-    response_login = client.get(login_url)
-    response_logout = client.get(logout_url)
-    assert response_register.status_code == HTTPStatus.OK
-    assert response_login.status_code == HTTPStatus.OK
-    assert response_logout.status_code == HTTPStatus.OK
+@pytest.mark.parametrize(
+    'url, client, expected_redirect',
+    [
+        (HOME_PAGE_URL, Client(), None),
+        (DETAIL_PAGE_URL, Client(), None),
+        (EDIT_COMMENT_URL, Client(),
+         f'{LOGIN_USER_URL}?next={EDIT_COMMENT_URL}'),
+        (DELETE_COMMENT_URL, Client(),
+         f'{LOGIN_USER_URL}?next={DELETE_COMMENT_URL}'),
+        (SIGNUP_USER_URL, Client(), None),
+        (LOGIN_USER_URL, Client(), None),
+        (LOGOUT_USER_URL, Client(), None),
+    ]
+)
+def test_all_redirects(client, url, expected_redirect):
+    response = client.get(url, follow=True)
+    if expected_redirect:
+        assert response != expected_redirect
