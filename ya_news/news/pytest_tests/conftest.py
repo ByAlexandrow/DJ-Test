@@ -1,5 +1,6 @@
 import pytest
 
+from django.conf import settings
 from django.test.client import Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
@@ -80,5 +81,5 @@ def create_news(title, text):
 @pytest.fixture
 def news_list():
     news = [News(title=f'Какое-то название новости {i}',
-                 text='какая-то новость') for i in range(11)]
+                 text='какая-то новость') for i in range(settings.CREATE_NEWS)]
     return News.objects.bulk_create(news)
